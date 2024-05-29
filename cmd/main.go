@@ -6,7 +6,6 @@ import (
 	"log"
 	"net/http"
 	"os"
-	"time"
 
 	"github.com/eric-jacobson/chat-server/internal/db"
 	"github.com/eric-jacobson/chat-server/internal/users"
@@ -59,11 +58,7 @@ func (apiConfig *apiConfig) handleCreateUser(c *gin.Context) {
 	}
 	log.Println("Create user request for:", newUser.UserName)
 
-	user, err := apiConfig.DB.CreateUser(c, db.CreateUserParams{
-		CreatedAt: time.Now().UTC(),
-		UpdatedAt: time.Now().UTC(),
-		UserName:  newUser.UserName,
-	})
+	user, err := apiConfig.DB.CreateUser(c, newUser.UserName)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, fmt.Sprintf("Error creating new user: %s", err))
 	}
