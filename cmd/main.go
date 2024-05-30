@@ -40,8 +40,8 @@ func main() {
 func InitRoutes(apiConfig *apiConfig) *gin.Engine {
 	router := gin.Default()
 
-	router.GET("/ping", handlePing)
 	router.POST("/users", apiConfig.handleCreateUser)
+	router.GET("/users/:name", apiConfig.handleGetUserByName)
 
 	return router
 }
@@ -66,6 +66,11 @@ func (apiConfig *apiConfig) handleCreateUser(c *gin.Context) {
 	c.JSON(http.StatusCreated, user)
 }
 
-func handlePing(c *gin.Context) {
-	log.Println("I've been pinged!")
+func (apiConfig *apiConfig) handleGetUserByName(c *gin.Context) {
+	user, err := apiConfig.DB.GetUser(c, c.Param("name"))
+	if err != nil {
+		c.JSON(http.StatusNotFound, fmt.Sprintf("Did not find user: %s", err))
+	}
+
+	c.JSON(http.StatusOK, user)
 }
