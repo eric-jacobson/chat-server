@@ -42,6 +42,7 @@ func InitRoutes(apiConfig *apiConfig) *gin.Engine {
 
 	router.POST("/users", apiConfig.handleCreateUser)
 	router.GET("/users/:name", apiConfig.handleGetUserByName)
+	router.DELETE("/users/:name", apiConfig.handleDeleteUserByName)
 
 	return router
 }
@@ -69,8 +70,18 @@ func (apiConfig *apiConfig) handleCreateUser(c *gin.Context) {
 func (apiConfig *apiConfig) handleGetUserByName(c *gin.Context) {
 	user, err := apiConfig.DB.GetUser(c, c.Param("name"))
 	if err != nil {
-		c.JSON(http.StatusNotFound, fmt.Sprintf("Did not find user: %s", err))
+		log.Printf("Did not find user %v: %v", c.Param("name"), err)
+		c.JSON(http.StatusNotFound, fmt.Sprintf("Did not find user"))
 	}
 
 	c.JSON(http.StatusOK, user)
+}
+
+func (apiConfig *apiConfig) handleDeleteUserByName(c *gin.Context) {
+	if err := apiConfig.DB.DeleteUser(c, c.Param("name")); err != nil {
+		log.Printf("Did not find user %v: %v", c.Param("name"), err)
+		c.JSON(http.StatusNotFound, fmt.Sprintf("Did not find user"))
+	}
+
+	c.Status(http.StatusOK)
 }
