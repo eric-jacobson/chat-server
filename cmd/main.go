@@ -2,9 +2,7 @@ package main
 
 import (
 	"database/sql"
-	"fmt"
 	"log"
-	"net/http"
 	"os"
 
 	"github.com/eric-jacobson/chat-server/internal/db"
@@ -14,6 +12,11 @@ import (
 
 	_ "github.com/lib/pq"
 )
+
+type AppConfig struct {
+	DB          *db.Queries
+	UserHandler users.UserHandler
+}
 
 func main() {
 	godotenv.Load()
@@ -33,55 +36,21 @@ func main() {
 		log.Fatal("could not connect to database at", dbUrl)
 	}
 
-	router := InitRoutes(&apiConfig{DB: db.New(conn)})
+	var appConfig = AppConfig{DB: db.New(conn)}
+
+	userHandler := users.NewUserHandler(appConfig.DB)
+	appConfig.UserHandler = *userHandler
+
+	router := initRoutes(&appConfig)
 	router.Run("localhost:" + port)
 }
 
-func InitRoutes(apiConfig *apiConfig) *gin.Engine {
+func initRoutes(appConfig *AppConfig) *gin.Engine {
 	router := gin.Default()
 
-	router.POST("/users", apiConfig.handleCreateUser)
-	router.GET("/users/:name", apiConfig.handleGetUserByName)
-	router.DELETE("/users/:name", apiConfig.handleDeleteUserByName)
+	router.POST("/users", appConfig.UserHandler.HandleCreateUser)
+	router.GET("/users/:name", appConfig.UserHandler.HandleGetUserByName)
+	router.DELETE("/users/:name", appConfig.UserHandler.HandleDeleteUserByName)
 
 	return router
-}
-
-type apiConfig struct {
-	DB *db.Queries
-}
-
-func (apiConfig *apiConfig) handleCreateUser(c *gin.Context) {
-	var newUser users.CreateUserReq
-
-	if err := c.BindJSON(&newUser); err != nil {
-		c.JSON(http.StatusBadRequest, fmt.Sprintf("Error parsing create new user request: %s", err))
-	}
-	log.Println("Create user request for:", newUser.UserName)
-
-	user, err := apiConfig.DB.CreateUser(c, newUser.UserName)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, fmt.Sprintf("Error creating new user: %s", err))
-	}
-
-	c.JSON(http.StatusCreated, user)
-}
-
-func (apiConfig *apiConfig) handleGetUserByName(c *gin.Context) {
-	user, err := apiConfig.DB.GetUser(c, c.Param("name"))
-	if err != nil {
-		log.Printf("Did not find user %v: %v", c.Param("name"), err)
-		c.JSON(http.StatusNotFound, fmt.Sprintf("Did not find user"))
-	}
-
-	c.JSON(http.StatusOK, user)
-}
-
-func (apiConfig *apiConfig) handleDeleteUserByName(c *gin.Context) {
-	if err := apiConfig.DB.DeleteUser(c, c.Param("name")); err != nil {
-		log.Printf("Did not find user %v: %v", c.Param("name"), err)
-		c.JSON(http.StatusNotFound, fmt.Sprintf("Did not find user"))
-	}
-
-	c.Status(http.StatusOK)
 }
