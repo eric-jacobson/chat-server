@@ -21,7 +21,8 @@ CREATE TABLE users (
 		id BIGSERIAL PRIMARY KEY NOT NULL,
 		created_at TIMESTAMP WITH TIME ZONE NOT NULL,
 		updated_at TIMESTAMP WITH TIME ZONE NOT NULL,
-		user_name TEXT NOT NULL
+		user_name TEXT NOT NULL,
+		password_hash TEXT NOT NULL
 );
 
 CREATE OR REPLACE TRIGGER users_timestamp_audit_trigger BEFORE INSERT OR UPDATE ON users

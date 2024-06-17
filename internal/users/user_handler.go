@@ -7,6 +7,7 @@ import (
 
 	"github.com/eric-jacobson/chat-server/internal/db"
 	"github.com/gin-gonic/gin"
+	"golang.org/x/crypto/bcrypt"
 )
 
 type UserHandler struct {
@@ -25,12 +26,18 @@ func (u *UserHandler) HandleCreateUser(c *gin.Context) {
 	}
 	log.Println("Create user request for:", newUser.UserName)
 
-	user, err := u.DB.CreateUser(c, newUser.UserName)
+	hashedPassword, err := hashPassword(newUser.Password)
+	if err != nil {
+		log.Println(err)
+		c.JSON(http.StatusInternalServerError, fmt.Sprintf("Error creating new user: %s", err))
+	}
+
+	user, err := u.DB.CreateUser(c, db.CreateUserParams{UserName: newUser.UserName, PasswordHash: hashedPassword})
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, fmt.Sprintf("Error creating new user: %s", err))
 	}
 
-	c.JSON(http.StatusCreated, user)
+	c.JSON(http.StatusCreated, UserResp{UserName: user.UserName, CreatedAt: user.CreatedAt, UpdatedAt: user.UpdatedAt})
 }
 
 func (u *UserHandler) HandleGetUserByName(c *gin.Context) {
@@ -40,7 +47,7 @@ func (u *UserHandler) HandleGetUserByName(c *gin.Context) {
 		c.JSON(http.StatusNotFound, fmt.Sprintf("Did not find user"))
 	}
 
-	c.JSON(http.StatusOK, user)
+	c.JSON(http.StatusOK, UserResp{UserName: user.UserName, CreatedAt: user.CreatedAt, UpdatedAt: user.UpdatedAt})
 }
 
 func (u *UserHandler) HandleDeleteUserByName(c *gin.Context) {
@@ -50,4 +57,16 @@ func (u *UserHandler) HandleDeleteUserByName(c *gin.Context) {
 	}
 
 	c.Status(http.StatusOK)
+}
+
+func hashPassword(password string) (string, error) {
+	hash, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
+	if err != nil {
+		return "", fmt.Errorf("error hashing password %v", err.Error())
+	}
+	return string(hash), nil
+}
+
+func checkHash(password string, hash string) error {
+	return bcrypt.CompareHashAndPassword([]byte(hash), []byte(password))
 }
