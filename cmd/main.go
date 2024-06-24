@@ -5,6 +5,7 @@ import (
 	"log"
 	"os"
 
+	"github.com/eric-jacobson/chat-server/internal/auth"
 	"github.com/eric-jacobson/chat-server/internal/db"
 	"github.com/eric-jacobson/chat-server/internal/users"
 	"github.com/gin-gonic/gin"
@@ -14,7 +15,6 @@ import (
 )
 
 type AppConfig struct {
-	DB          *db.Queries
 	UserHandler users.UserHandler
 }
 
@@ -36,10 +36,8 @@ func main() {
 		log.Fatal("could not connect to database at", dbUrl)
 	}
 
-	var appConfig = AppConfig{DB: db.New(conn)}
-
-	userHandler := users.NewUserHandler(appConfig.DB)
-	appConfig.UserHandler = *userHandler
+	userHandler := users.NewUserHandler(db.New(conn))
+	var appConfig = AppConfig{UserHandler: *userHandler}
 
 	router := initRoutes(&appConfig)
 	router.Run("localhost:" + port)
@@ -48,9 +46,10 @@ func main() {
 func initRoutes(appConfig *AppConfig) *gin.Engine {
 	router := gin.Default()
 
-	router.POST("/users", appConfig.UserHandler.HandleCreateUser)
-	router.GET("/users/:name", appConfig.UserHandler.HandleGetUserByName)
-	router.DELETE("/users/:name", appConfig.UserHandler.HandleDeleteUserByName)
+	router.POST("/user/register", appConfig.UserHandler.HandleRegister)
+	router.POST("/user/login", appConfig.UserHandler.HandleLogin)
+	router.GET("/user/:name", auth.Authenticate, appConfig.UserHandler.HandleGetUserByName)
+	router.DELETE("/user/:name", auth.Authenticate, appConfig.UserHandler.HandleDeleteUserByName)
 
 	return router
 }
